@@ -35,8 +35,6 @@ export class SurveysService {
   constructor(
     @InjectRepository(Survey)
     private readonly surveyRepository: Repository<Survey>,
-    @InjectRepository(Question)
-    private readonly questionRepository: Repository<Question>,
     @InjectRepository(Response)
     private readonly responseRepository: Repository<Response>,
     private readonly dataSource: DataSource,

@@ -48,11 +48,6 @@ describe('SurveysService', () => {
     findOne: jest.fn(),
   };
 
-  const questionRepo = {
-    create: jest.fn(),
-    save: jest.fn(),
-  };
-
   // New deps needed after submitResponse was added to the service
   const responseRepo = { findOne: jest.fn() };
   const dataSource = { transaction: jest.fn() };
@@ -62,7 +57,6 @@ describe('SurveysService', () => {
       providers: [
         SurveysService,
         { provide: getRepositoryToken(Survey), useValue: surveyRepo },
-        { provide: getRepositoryToken(Question), useValue: questionRepo },
         { provide: getRepositoryToken(Response), useValue: responseRepo },
         { provide: DataSource, useValue: dataSource },
       ],
