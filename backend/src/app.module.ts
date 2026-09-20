@@ -1,12 +1,21 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { Organization } from './entities/organization.entity';
+import { User } from './entities/user.entity';
+import { Survey } from './entities/survey.entity';
+import { Question } from './entities/question.entity';
+import { Response } from './entities/response.entity';
+import { ResponseAnswer } from './entities/response-answer.entity';
 
 /**
  * Root application module.
  *
- * TypeORM is configured here with synchronize: true for local development only.
- * Feature modules (AuthModule, SurveysModule, OrganizationsModule) will be
- * imported here once implemented.
+ * TypeORM is configured here with synchronize: false — schema is managed
+ * entirely by migrations (src/migrations/). Run `npm run migration:run`
+ * before starting the server for the first time.
+ *
+ * Feature modules (AuthModule, SurveysModule) will be imported here once
+ * implemented.
  */
 @Module({
   imports: [
@@ -17,10 +26,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       username: process.env['DB_USER'] ?? 'pulse',
       password: process.env['DB_PASSWORD'] ?? 'pulse',
       database: process.env['DB_NAME'] ?? 'pulse',
-      // Entities will be added here as feature modules are built
-      entities: [],
-      // Auto-create schema in development — will be replaced with migrations
-      synchronize: process.env['NODE_ENV'] !== 'production',
+      entities: [Organization, User, Survey, Question, Response, ResponseAnswer],
+      // Schema is managed by migrations — never auto-sync in any environment
+      synchronize: false,
       logging: process.env['NODE_ENV'] !== 'production',
     }),
   ],

@@ -6,6 +6,11 @@
     "build": "tsc",
     "start": "node dist/main",
     "start:dev": "ts-node -r tsconfig-paths/register src/main.ts",
+    "migration:run": "node node_modules/ts-node/dist/bin.js -r tsconfig-paths/register node_modules/typeorm/cli.js migration:run -d src/data-source.ts",
+    "migration:revert": "node node_modules/ts-node/dist/bin.js -r tsconfig-paths/register node_modules/typeorm/cli.js migration:revert -d src/data-source.ts",
+    "migration:generate": "node node_modules/ts-node/dist/bin.js -r tsconfig-paths/register node_modules/typeorm/cli.js migration:generate -d src/data-source.ts",
+    "migration:show": "node node_modules/ts-node/dist/bin.js -r tsconfig-paths/register node_modules/typeorm/cli.js migration:show -d src/data-source.ts",
+    "seed": "node node_modules/ts-node/dist/bin.js -r tsconfig-paths/register src/seed.ts",
     "test": "jest --runInBand"
   },
   "dependencies": {
