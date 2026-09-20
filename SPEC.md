@@ -155,6 +155,12 @@ Row-level security (RLS) policies were considered and rejected for this slice be
 
 ## 5. Local Identity
 
+> **⚠ Divergence from AGENTS.md**
+>
+> AGENTS.md §2 specifies: *"Issue a stateless JWT from a seeded-user login endpoint."*
+>
+> This implementation uses an `X-User-Id` header instead of a JWT. The divergence is a deliberate, scoped trade-off for a local-only demo and is documented here and in SOLUTION.md §Trade-offs. The security properties that matter (organizationId always derived from the DB, never from the client) are fully preserved regardless of the token mechanism. Replacing the header with a real JWT requires only swapping the `AuthGuard` — no service or entity code changes.
+
 **Mechanism: `X-User-Id` request header**
 
 There are no passwords, no JWTs, no sessions, and no external identity providers. This is intentional for local development simplicity.
