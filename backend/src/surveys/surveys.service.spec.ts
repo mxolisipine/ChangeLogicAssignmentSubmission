@@ -1,7 +1,9 @@
 import { NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 import { Question, QuestionType } from '../entities/question.entity';
+import { Response } from '../entities/response.entity';
 import { Survey } from '../entities/survey.entity';
 import { UserRole } from '../entities/user.entity';
 import type { CreateSurveyDto } from './dto/create-survey.dto';
@@ -51,12 +53,18 @@ describe('SurveysService', () => {
     save: jest.fn(),
   };
 
+  // New deps needed after submitResponse was added to the service
+  const responseRepo = { findOne: jest.fn() };
+  const dataSource = { transaction: jest.fn() };
+
   beforeEach(async () => {
     const module = await Test.createTestingModule({
       providers: [
         SurveysService,
         { provide: getRepositoryToken(Survey), useValue: surveyRepo },
         { provide: getRepositoryToken(Question), useValue: questionRepo },
+        { provide: getRepositoryToken(Response), useValue: responseRepo },
+        { provide: DataSource, useValue: dataSource },
       ],
     }).compile();
 

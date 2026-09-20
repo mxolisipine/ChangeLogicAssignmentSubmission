@@ -9,6 +9,7 @@
 
 import 'reflect-metadata';
 import { AppDataSource } from './data-source';
+import { currentISOWeek } from './common/iso-week';
 
 // ─── Hardcoded UUIDs ────────────────────────────────────────────────────────
 
@@ -131,24 +132,6 @@ async function seed(): Promise<void> {
     await runner.release();
     await AppDataSource.destroy();
   }
-}
-
-// ─── ISO week helper ─────────────────────────────────────────────────────────
-
-/**
- * Returns the ISO 8601 week key for the current date, e.g. "2026-W38".
- * ISO weeks start on Monday. Week 1 is the week containing the first Thursday of the year.
- */
-export function currentISOWeek(date: Date = new Date()): string {
-  // Copy and shift to nearest Thursday to find the correct ISO year+week
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  // Set to Thursday of the current week (ISO week starts Monday, Thursday is day 4)
-  d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  const weekNum = Math.ceil(
-    ((d.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7,
-  );
-  return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
 }
 
 seed();

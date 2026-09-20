@@ -12,6 +12,7 @@ import type { CurrentUser } from '../auth/current-user.interface';
 import { Roles } from '../auth/roles.decorator';
 import { UserRole } from '../entities/user.entity';
 import { CreateSurveyDto } from './dto/create-survey.dto';
+import { SubmitResponseDto } from './dto/submit-response.dto';
 import { SurveysService } from './surveys.service';
 
 /**
@@ -39,11 +40,31 @@ export class SurveysController {
   /**
    * GET /surveys/active
    * MANAGER or MEMBER. Returns the most recently created survey for the caller's org.
-   * Must be declared before /:id to avoid being shadowed by the param route.
+   * Declared before /:id to avoid being matched by the param route.
    */
   @Get('active')
   getActiveSurvey(@CurrentUserParam() currentUser: CurrentUser) {
     return this.surveysService.getActiveSurvey(currentUser.organizationId);
+  }
+
+  /**
+   * POST /surveys/:id/responses
+   * MEMBER only. weekKey computed server-side; never read from the request.
+   */
+  @Post(':id/responses')
+  @HttpCode(HttpStatus.CREATED)
+  @Roles(UserRole.MEMBER)
+  submitResponse(
+    @Param('id') surveyId: string,
+    @Body() dto: SubmitResponseDto,
+    @CurrentUserParam() currentUser: CurrentUser,
+  ) {
+    return this.surveysService.submitResponse(
+      surveyId,
+      currentUser.organizationId,
+      currentUser.id,
+      dto,
+    );
   }
 
   /**
