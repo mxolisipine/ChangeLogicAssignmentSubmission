@@ -23,6 +23,23 @@ export interface SubmitResponseResult {
   createdAt: Date;
 }
 
+/** Per-question rollup inside the summary response */
+export type QuestionSummary =
+  | { id: string; text: string; type: 'RATING'; average: number | null; count: number }
+  | { id: string; text: string; type: 'YES_NO'; yes: number; no: number };
+
+/** Shape returned by GET /surveys/:id/summary */
+export interface SurveySummary {
+  surveyId: string;
+  week: string;
+  completion: {
+    count: number;
+    totalMembers: number;
+    rate: number;
+  };
+  questions: QuestionSummary[];
+}
+
 /**
  * SurveysService — all business logic for survey creation, retrieval,
  * and response submission.
@@ -217,6 +234,128 @@ export class SurveysService {
       }
       throw err;
     }
+  }
+
+  // ─── Survey summary ────────────────────────────────────────────────────────
+
+  /**
+   * Aggregate completion and per-question rollups for a survey in a given week.
+   *
+   * All aggregation runs in PostgreSQL. Nothing is loaded into Node memory.
+   *
+   * Tenant isolation: the survey is first confirmed to belong to organizationId.
+   * Returns 404 (not 403) on cross-org access to avoid leaking existence.
+   *
+   * totalMembers = COUNT of users with role MEMBER in the survey's org.
+   * completionCount = COUNT of distinct response rows for (survey, week).
+   * rate = completionCount / totalMembers, rounded to 4 dp (0 when totalMembers = 0).
+   */
+  async getSummary(
+    surveyId: string,
+    organizationId: string,
+    weekParam?: string,
+  ): Promise<SurveySummary> {
+    const week = weekParam ?? currentISOWeek();
+
+    // ── 1. Verify survey exists and belongs to this org ───────────────────
+    const survey = await this.surveyRepository.findOne({
+      where: { id: surveyId, organizationId },
+    });
+
+    if (!survey) {
+      throw new NotFoundException('Survey not found');
+    }
+
+    // ── 2. Member count for this org (denominator) ────────────────────────
+    const memberCountResult = await this.dataSource.query<[{ member_count: string }]>(
+      `SELECT COUNT(*) AS member_count
+       FROM users
+       WHERE organization_id = $1
+         AND role = 'MEMBER'`,
+      [organizationId],
+    );
+    const totalMembers = parseInt(memberCountResult[0].member_count, 10);
+
+    // ── 3. Completion count for (survey, week) ────────────────────────────
+    const completionCountResult = await this.dataSource.query<[{ completion_count: string }]>(
+      `SELECT COUNT(DISTINCT r.id) AS completion_count
+       FROM responses r
+       WHERE r.survey_id = $1
+         AND r.week_key = $2`,
+      [surveyId, week],
+    );
+    const completionCount = parseInt(completionCountResult[0].completion_count, 10);
+
+    const rate =
+      totalMembers === 0
+        ? 0
+        : Math.round((completionCount / totalMembers) * 10_000) / 10_000;
+
+    // ── 4. Per-question rollup (one query, conditional aggregation) ───────
+    // LEFT JOIN ensures questions with zero answers still appear in the result.
+    // FILTER is standard PostgreSQL syntax — not ANSI SQL but TypeORM DataSource
+    // passes raw SQL straight through.
+    type RawRow = {
+      question_id: string;
+      question_text: string;
+      question_type: string;
+      order_index: string;
+      answer_count: string;
+      rating_average: string | null;
+      yes_count: string;
+      no_count: string;
+    };
+
+    const rows = await this.dataSource.query<RawRow[]>(
+      `SELECT
+         q.id                                                    AS question_id,
+         q.text                                                  AS question_text,
+         q.type                                                  AS question_type,
+         q.order_index                                           AS order_index,
+         COUNT(ra.id)                                            AS answer_count,
+         AVG(ra.rating_value)                                    AS rating_average,
+         COUNT(ra.id) FILTER (WHERE ra.yes_no_value = TRUE)      AS yes_count,
+         COUNT(ra.id) FILTER (WHERE ra.yes_no_value = FALSE)     AS no_count
+       FROM questions q
+       LEFT JOIN response_answers ra ON ra.question_id = q.id
+       LEFT JOIN responses r         ON r.id = ra.response_id
+                                    AND r.week_key = $2
+       WHERE q.survey_id = $1
+       GROUP BY q.id, q.text, q.type, q.order_index
+       ORDER BY q.order_index`,
+      [surveyId, week],
+    );
+
+    // ── 5. Map raw rows to typed question summaries ───────────────────────
+    const questions: QuestionSummary[] = rows.map((row) => {
+      if (row.question_type === QuestionType.RATING) {
+        const avg = row.rating_average !== null
+          ? Math.round(parseFloat(row.rating_average) * 100) / 100
+          : null;
+        return {
+          id: row.question_id,
+          text: row.question_text,
+          type: 'RATING' as const,
+          average: avg,
+          count: parseInt(row.answer_count, 10),
+        };
+      } else {
+        return {
+          id: row.question_id,
+          text: row.question_text,
+          type: 'YES_NO' as const,
+          yes: parseInt(row.yes_count, 10),
+          no: parseInt(row.no_count, 10),
+        };
+      }
+    });
+
+    return {
+      surveyId,
+      week,
+      completion: { count: completionCount, totalMembers, rate },
+      questions,
+    };
   }
 
   // ─── Private helpers ───────────────────────────────────────────────────────
