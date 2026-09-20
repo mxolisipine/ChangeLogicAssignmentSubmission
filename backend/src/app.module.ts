@@ -9,12 +9,17 @@ import { Response } from './entities/response.entity';
 import { ResponseAnswer } from './entities/response-answer.entity';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './auth/auth.guard';
+import { RolesGuard } from './auth/roles.guard';
+import { SurveysModule } from './surveys/surveys.module';
 
 /**
  * Root application module.
  *
- * AuthGuard is registered as a global APP_GUARD so every route is protected
- * by default. Routes that should be public must be decorated with @Public().
+ * Guard order matters:
+ *   1. AuthGuard — resolves identity (401 if missing/unknown X-User-Id).
+ *   2. RolesGuard — checks role against @Roles() decorator (403 if wrong role).
+ *
+ * NestJS executes APP_GUARD providers in the order they are declared.
  */
 @Module({
   imports: [
@@ -30,12 +35,18 @@ import { AuthGuard } from './auth/auth.guard';
       logging: process.env['NODE_ENV'] !== 'production',
     }),
     AuthModule,
+    SurveysModule,
   ],
   providers: [
-    // Register AuthGuard globally — protects every route unless @Public()
+    // 1. Identity resolution — must run before RolesGuard
     {
       provide: APP_GUARD,
       useClass: AuthGuard,
+    },
+    // 2. Role authorization — runs after AuthGuard populates request.user
+    {
+      provide: APP_GUARD,
+      useClass: RolesGuard,
     },
   ],
 })
