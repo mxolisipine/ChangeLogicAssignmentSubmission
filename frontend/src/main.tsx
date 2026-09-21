@@ -1,18 +1,53 @@
-import React, { StrictMode } from 'react';
+import React, { useState, StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
+import { setCurrentUserId } from './api';
+import { ManagerScreen } from './ManagerScreen';
+import { MemberScreen } from './MemberScreen';
+import { UserSelector } from './UserSelector';
+import type { UserListItem } from './types';
 
 /**
- * Application entry point.
+ * App — root component.
  *
- * Feature screens (LoginScreen, MemberSurveyScreen, ManagerSummaryScreen)
- * will be wired in here once implemented.
+ * State machine:
+ *   selectedUser === null  →  show prompt to select a user
+ *   selectedUser.role === 'MEMBER'   →  MemberScreen
+ *   selectedUser.role === 'MANAGER'  →  ManagerScreen
+ *
+ * The UserSelector is always visible at the top.
+ * Changing the selected user resets the active screen entirely.
  */
 function App(): React.JSX.Element {
+  const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
+
+  function handleUserSelect(user: UserListItem | null): void {
+    // Update the module-level auth header used by all API calls
+    setCurrentUserId(user?.id ?? null);
+    setSelectedUser(user);
+  }
+
   return (
-    <div>
-      <h1>Pulse Surveys</h1>
-      <p>Scaffold only — feature screens coming next.</p>
-    </div>
+    <>
+      <UserSelector onSelect={handleUserSelect} />
+      <main>
+        {selectedUser === null && (
+          <p
+            style={{
+              padding: '32px 16px',
+              textAlign: 'center',
+              color: '#555',
+              fontFamily: 'sans-serif',
+            }}
+          >
+            Select a user from the dropdown above to get started.
+          </p>
+        )}
+
+        {selectedUser?.role === 'MEMBER' && <MemberScreen key={selectedUser.id} />}
+
+        {selectedUser?.role === 'MANAGER' && <ManagerScreen key={selectedUser.id} />}
+      </main>
+    </>
   );
 }
 
