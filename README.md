@@ -62,6 +62,7 @@ The backend seeds two organizations on startup:
 | Carol Member | carol@acme.example       | MEMBER  | Acme   |
 | Dave Manager | dave@globex.example      | MANAGER | Globex |
 | Eve Member   | eve@globex.example       | MEMBER  | Globex |
+| Frank Member | frank@globex.example     | MEMBER  | Globex |
 
 Log in by selecting a user from the dropdown on the login screen. No password required locally.
 
@@ -71,7 +72,12 @@ Log in by selecting a user from the dropdown on the login screen. No password re
 
 ```bash
 cd backend
+
+# Unit tests
 npm test
+
+# Integration + E2E tests (requires Postgres running)
+npm run test:integration
 ```
 
 ---
