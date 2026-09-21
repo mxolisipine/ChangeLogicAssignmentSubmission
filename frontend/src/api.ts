@@ -11,6 +11,7 @@ import type {
   AnswerPayload,
   CurrentUser,
   SubmitResult,
+  SurveySummary,
   UserListItem,
 } from './types';
 
@@ -99,4 +100,9 @@ export function submitResponse(
     method: 'POST',
     body: JSON.stringify({ answers }),
   });
+}
+
+/** GET /surveys/:id/summary — requires X-User-Id, MANAGER only */
+export function getSummary(surveyId: string): Promise<SurveySummary> {
+  return apiFetch<SurveySummary>(`/surveys/${surveyId}/summary`);
 }

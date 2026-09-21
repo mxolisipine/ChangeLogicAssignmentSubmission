@@ -47,3 +47,20 @@ export interface SubmitResult {
   weekKey: string;
   createdAt: string;
 }
+
+/** Per-question rollup inside a summary response */
+export type QuestionSummary =
+  | { id: string; text: string; type: 'RATING'; average: number | null; count: number }
+  | { id: string; text: string; type: 'YES_NO'; yes: number; no: number };
+
+/** Shape returned by GET /surveys/:id/summary */
+export interface SurveySummary {
+  surveyId: string;
+  week: string;
+  completion: {
+    count: number;
+    totalMembers: number;
+    rate: number;
+  };
+  questions: QuestionSummary[];
+}
