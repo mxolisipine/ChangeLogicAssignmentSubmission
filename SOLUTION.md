@@ -45,13 +45,13 @@ Replacing the header with a real JWT requires only rewriting `AuthGuard.canActiv
 | Item | Status | Reason |
 |---|---|---|
 | JWT authentication | Replaced with X-User-Id header | See §1 above |
-| Summary endpoint (`GET /surveys/:id/summary`) | Not yet implemented | Next commit |
-| React frontend | Not yet implemented | Planned |
+| Summary endpoint (`GET /surveys/:id/summary`) | Implemented — SQL aggregation via `DataSource.query` | Completion count, rate, rating average, yes/no counts all computed in PostgreSQL |
+| React frontend | Implemented — user selector, member survey form, manager summary screen | Three screens, conditional rendering, no routing library |
+| End-to-end tests | Implemented — `surveys.e2e.spec.ts` covers the full happy-path cycle and cross-tenant negative cases | 16 integration + e2e tests passing |
 | Survey activation/deactivation | Not implemented | "Most recent survey" is the active one — sufficient for the demo |
 | Migrations in production | `synchronize: false` with explicit migration file | Dev uses the migration runner; prod would use the same |
 | Rate limiting, audit logging | Not implemented | Out of scope per AGENTS.md §8 |
 | Pagination | Not implemented | Out of scope per AGENTS.md §8 |
-| End-to-end tests | Not implemented | Out of scope per AGENTS.md §8 |
 
 ---
 
@@ -62,7 +62,7 @@ Replacing the header with a real JWT requires only rewriting `AuthGuard.canActiv
 - **App tier:** ECS Fargate (containerised NestJS). Stateless — scales horizontally. ALB in front with HTTPS termination.
 - **Database:** Amazon RDS for PostgreSQL (Multi-AZ for HA). The same TypeORM migrations run against RDS on deploy via a one-off ECS task.
 - **Frontend:** S3 + CloudFront. Vite produces a static bundle; CloudFront serves it globally with cache headers. No backend involvement in serving HTML/JS/CSS.
-- **Secrets:** AWS Secrets Manager for DB credentials and JWT secret. ECS task role reads them at startup — no secrets in environment variables or Docker images.
+- **Secrets:** AWS Secrets Manager for DB credentials. If the `X-User-Id` header is replaced with JWT authentication in production (see §1), the signing secret would also be stored here. ECS task role reads secrets at startup — no secrets in environment variables or Docker images.
 
 ### Organization logo storage (cost and security)
 
@@ -81,14 +81,60 @@ Replacing the header with a real JWT requires only rewriting `AuthGuard.canActiv
 
 ## 6. AI Workflow (Task 4)
 
-*This section will be completed once the full implementation is done and the session transcripts are exported. It will cover: which AI tools were used, how tasks were broken down, what was delegated vs retained, how output was reviewed and corrected, and what would be done differently.*
+### Tools used
 
-Key checkpoints so far where AI output was corrected:
+Two AI tools were used in combination:
 
-- **TypeORM 1.x API**: The AI initially used array syntax for `select` and `relations` (`['field']`). TypeORM 1.0 requires object syntax (`{ field: true }`). Caught and fixed during the test run.
-- **ISO week boundary test**: An incorrect test asserted that 2026-09-14 (a Monday, the start of W38) was in W37. Fixed after the test failure exposed the wrong date assumption.
-- **`@nestjs/testing` not installed**: The AI added the package to `package.json` but `npm install` had already run. The missing package was caught immediately when the first test run failed with a module-not-found error.
+- **Codex** — used to decompose the assignment brief into a structured prompt playbook. The assignment tasks were analysed and fleshed out into discrete, commit-sized prompts with explicit instructions, constraints, and acceptance criteria. The output was committed as `PLAYBOOK.md`, which defines the full sequence of 11 prompts (Stage 1 through Commit 11) and the order in which they should be executed.
 
----
+- **Kiro** (VS Code extension, powered by Claude) — used to execute every prompt from `PLAYBOOK.md` in sequence. Kiro generated code, ran commands, fixed compilation errors, and committed each stage. All application code, tests, configuration, and documentation in this repository was produced through Kiro.
 
-*Document will be updated as implementation progresses.*
+### How tasks were broken down
+
+The `PLAYBOOK.md` prompt playbook defines the full execution order. Work was decomposed into discrete commit-sized stages:
+
+1. Analysis (no code) — read the assignment and identify requirements, invariants, authorization rules, and test strategy.
+2. `AGENTS.md` — machine-readable instructions constraining Kiro's behaviour throughout the project.
+3. Repository scaffold — `package.json`, `tsconfig.json`, `docker-compose.yml`, stub entry points.
+4. `SPEC.md` — authoritative design document committed before any application code.
+5. Database layer — TypeORM entities, migration, seed script with hardcoded UUIDs.
+6. Identity resolution — `AuthGuard`, `RolesGuard`, `X-User-Id` header pattern.
+7. Survey CRUD — `POST /surveys`, `GET /surveys/active`, `GET /surveys/:id`.
+8. Response submission — `POST /surveys/:id/responses` with ISO week key and DB transaction.
+9. Summary endpoint — `GET /surveys/:id/summary` with raw SQL aggregation.
+10. Integration tests — isolation, authorization, response rules, summary correctness.
+11. React frontend — user selector, member survey form, manager summary screen.
+12. E2E test — full happy-path cycle plus cross-tenant negatives.
+
+### What was delegated to Kiro vs retained by the developer
+
+**Delegated to Kiro:** file generation, NestJS boilerplate, SQL query construction, test scaffolding, TypeScript interface definitions, dependency version lookup, git commands, compilation verification.
+
+**Retained by the developer:** architectural decisions (X-User-Id vs JWT, application-layer vs RLS, ISO weeks vs rolling window), the `SPEC.md` content as the authoritative contract, prompt authoring and sequencing in `PLAYBOOK.md`, review of every generated file before committing, validation against the running database.
+
+### How AI output was reviewed and validated
+
+Every generated file was read before committing. Tests were run before any commit that touched application logic. When tests failed, the failure message was used to diagnose the root cause before attempting a fix — incremental patching without diagnosis was explicitly avoided. The integration test suite (`npm run test:integration`) was run against the live Postgres instance to confirm correctness at the HTTP layer before marking any backend stage complete.
+
+### What was corrected or rejected
+
+- **TypeORM 1.x `select` and `relations` syntax**: Kiro generated array syntax (`['field']`, `['relation']`) which TypeORM 1.0 rejects. Fixed to object syntax (`{ field: true }`) after the first test run surfaced the type errors.
+- **`@JoinColumn` names using camelCase**: Kiro used camelCase property names (e.g. `organizationId`) in `@JoinColumn({ name: ... })` instead of the DB column names (`organization_id`). This caused TypeORM to generate invalid SQL at runtime. Fixed by adding explicit `name: 'snake_case'` to every `@Column`, `@CreateDateColumn`, and `@JoinColumn` decorator across all six entities.
+- **`APP_GUARD` dependency injection**: Kiro registered `AuthGuard` with `useClass` at the `APP_GUARD` token, which created a second instance without `UserRepository` resolved. Fixed to `useExisting`, which reuses the instance already constructed by `AuthModule`.
+- **`@IsUUID()` on `questionId`**: The seed IDs (e.g. `dddddddd-0000-0000-0000-000000000001`) are not UUID v4 format — the version nibble is `0`, not `4`. The `@IsUUID()` decorator rejected them silently, causing integration tests to fail with 400 instead of the expected 422 or 201. Fixed to `@IsString()` + `@IsNotEmpty()`.
+- **ISO week boundary test**: A test asserted that 2026-09-14 (a Monday — the opening day of W38) was in W37. The test was wrong; the `currentISOWeek()` function was correct. Fixed the test assertion after the failure identified the date had been misidentified as a Sunday.
+- **`select: { id: true }` partial select causing undefined fields**: TypeORM 1.x returned `undefined` for fields omitted from a partial `select` in some query paths. Removed the partial select — full row load is simpler and correct.
+- **`start:dev` script calling `ts-node` as a global**: `node` was not on the system PATH when npm spawned child processes, causing `'node' is not recognized` errors. Fixed all npm scripts to call `node node_modules/ts-node/dist/bin.js` using the full local path.
+- **`passport`, `passport-jwt`, `@nestjs/passport`, `@nestjs/jwt` in `package.json`**: These were scaffolded from the initial template and were never imported anywhere in the source. Removed in a dedicated refactor commit after a review flagged them as misleading dead dependencies that inflated the audit surface.
+- **`questionRepository` injected but unused**: Kiro injected `@InjectRepository(Question)` into `SurveysService` even though no method used it — question persistence is handled by TypeORM's cascade on `Survey.questions`. Removed in the same refactor commit.
+
+### What would be done differently next time
+
+- Pin TypeORM 1.x API idioms (object `select`, object `relations`, snake_case `@JoinColumn`) in `AGENTS.md` from the start, so Kiro generates them correctly on the first attempt rather than requiring a post-test correction pass.
+- Add explicit column name mapping conventions to `AGENTS.md` so the entity/DB mismatch is caught at generation time rather than at integration test runtime.
+- Run `tsc --noEmit` after each file generation step, not only before committing.
+- Include a `PLAYBOOK.md`-style prompt structure from the outset — decomposing the work into explicit, ordered, commit-sized prompts before writing any code proved to be the highest-leverage preparation step in this workflow.
+
+### Session transcripts
+
+The full conversation between the developer and Kiro is saved in `ai-logs/` in the repository. Each exchange is logged as it was conducted, with no post-hoc editing.
