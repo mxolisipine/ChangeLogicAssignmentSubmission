@@ -56,10 +56,8 @@ export class AuthGuard implements CanActivate {
     }
 
     // Always load from DB — organizationId and role come from the database only
-    // TypeORM 1.x requires select as an object, not an array
     const user = await this.userRepository.findOne({
       where: { id: userId.trim() },
-      select: { id: true, organizationId: true, role: true, name: true },
     });
 
     if (!user) {

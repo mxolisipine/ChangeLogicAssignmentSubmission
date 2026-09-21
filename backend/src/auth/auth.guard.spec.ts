@@ -104,7 +104,6 @@ describe('AuthGuard', () => {
     // Verify the repository was queried with the correct id
     expect(userRepo.findOne).toHaveBeenCalledWith({
       where: { id: MOCK_USER.id },
-      select: { id: true, organizationId: true, role: true, name: true },
     });
 
     // Verify CurrentUser shape on request.user

@@ -18,17 +18,17 @@ export class Survey {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'organization_id' })
   organizationId!: string;
 
   @Column({ type: 'varchar', length: 255 })
   title!: string;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt!: Date;
 
   @ManyToOne(() => Organization, (org) => org.surveys, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'organizationId' })
+  @JoinColumn({ name: 'organization_id' })
   organization!: Organization;
 
   @OneToMany(() => Question, (question) => question.survey, { cascade: true })

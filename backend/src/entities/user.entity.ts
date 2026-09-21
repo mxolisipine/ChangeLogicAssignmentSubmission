@@ -22,7 +22,7 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'organization_id' })
   organizationId!: string;
 
   @Column({ type: 'varchar', length: 255 })
@@ -34,11 +34,11 @@ export class User {
   @Column({ type: 'enum', enum: UserRole })
   role!: UserRole;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt!: Date;
 
   @ManyToOne(() => Organization, (org) => org.users, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'organizationId' })
+  @JoinColumn({ name: 'organization_id' })
   organization!: Organization;
 
   @OneToMany(() => Response, (response) => response.user)

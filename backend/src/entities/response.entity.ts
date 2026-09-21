@@ -20,30 +20,30 @@ export class Response {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'survey_id' })
   surveyId!: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'user_id' })
   userId!: string;
 
   /**
    * ISO 8601 week key, e.g. "2026-W38".
    * Computed server-side at submission time — never supplied by the client.
    */
-  @Column({ type: 'varchar', length: 8 })
+  @Column({ type: 'varchar', length: 8, name: 'week_key' })
   weekKey!: string;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt!: Date;
 
   @ManyToOne(() => Survey, (survey) => survey.responses, {
     onDelete: 'RESTRICT',
   })
-  @JoinColumn({ name: 'surveyId' })
+  @JoinColumn({ name: 'survey_id' })
   survey!: Survey;
 
   @ManyToOne(() => User, (user) => user.responses, { onDelete: 'RESTRICT' })
-  @JoinColumn({ name: 'userId' })
+  @JoinColumn({ name: 'user_id' })
   user!: User;
 
   @OneToMany(() => ResponseAnswer, (answer) => answer.response, {

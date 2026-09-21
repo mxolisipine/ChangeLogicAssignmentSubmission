@@ -38,15 +38,17 @@ import { SurveysModule } from './surveys/surveys.module';
     SurveysModule,
   ],
   providers: [
-    // 1. Identity resolution — must run before RolesGuard
+    // 1. Identity resolution — must run before RolesGuard.
+    // useExisting references the AuthGuard instance already instantiated by
+    // AuthModule, so its UserRepository dependency resolves correctly.
     {
       provide: APP_GUARD,
-      useClass: AuthGuard,
+      useExisting: AuthGuard,
     },
     // 2. Role authorization — runs after AuthGuard populates request.user
     {
       provide: APP_GUARD,
-      useClass: RolesGuard,
+      useExisting: RolesGuard,
     },
   ],
 })

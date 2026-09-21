@@ -186,7 +186,6 @@ export class SurveysService {
     const weekKey = currentISOWeek();
     const existing = await this.responseRepository.findOne({
       where: { surveyId, userId, weekKey },
-      select: { id: true },
     });
 
     if (existing) {

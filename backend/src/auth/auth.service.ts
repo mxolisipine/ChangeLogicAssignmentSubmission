@@ -43,7 +43,7 @@ export class AuthService {
    */
   async getAllUsers(): Promise<UserListItem[]> {
     const users = await this.userRepository.find({
-      relations: ['organization'],
+      relations: { organization: true },
       order: { name: 'ASC' },
     });
 

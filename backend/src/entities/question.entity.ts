@@ -21,7 +21,7 @@ export class Question {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'survey_id' })
   surveyId!: string;
 
   @Column({ type: 'varchar', length: 1000 })
@@ -34,13 +34,13 @@ export class Question {
    * Zero-based display order within the survey (0, 1, 2).
    * Max 3 questions per survey is enforced at the service layer, not here.
    */
-  @Column({ type: 'smallint' })
+  @Column({ type: 'smallint', name: 'order_index' })
   orderIndex!: number;
 
   @ManyToOne(() => Survey, (survey) => survey.questions, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'surveyId' })
+  @JoinColumn({ name: 'survey_id' })
   survey!: Survey;
 
   @OneToMany(() => ResponseAnswer, (answer) => answer.question)

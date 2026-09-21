@@ -4,15 +4,18 @@ import {
   IsArray,
   IsBoolean,
   IsInt,
+  IsNotEmpty,
   IsOptional,
-  IsUUID,
+  IsString,
   Max,
   Min,
   ValidateNested,
 } from 'class-validator';
 
 export class SubmitAnswerDto {
-  @IsUUID()
+  /** The question's UUID. Ownership verified by the service layer. */
+  @IsString()
+  @IsNotEmpty()
   questionId!: string;
 
   /**

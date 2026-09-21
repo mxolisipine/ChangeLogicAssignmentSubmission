@@ -16,7 +16,7 @@ export class Organization {
   @Column({ type: 'varchar', length: 255, unique: true })
   name!: string;
 
-  @CreateDateColumn({ type: 'timestamptz' })
+  @CreateDateColumn({ type: 'timestamptz', name: 'created_at' })
   createdAt!: Date;
 
   @OneToMany(() => User, (user) => user.organization)

@@ -18,10 +18,10 @@ export class ResponseAnswer {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'response_id' })
   responseId!: string;
 
-  @Column({ type: 'uuid' })
+  @Column({ type: 'uuid', name: 'question_id' })
   questionId!: string;
 
   /**
@@ -41,12 +41,12 @@ export class ResponseAnswer {
   @ManyToOne(() => Response, (response) => response.answers, {
     onDelete: 'CASCADE',
   })
-  @JoinColumn({ name: 'responseId' })
+  @JoinColumn({ name: 'response_id' })
   response!: Response;
 
   @ManyToOne(() => Question, (question) => question.answers, {
     onDelete: 'RESTRICT',
   })
-  @JoinColumn({ name: 'questionId' })
+  @JoinColumn({ name: 'question_id' })
   question!: Question;
 }
