@@ -85,16 +85,65 @@ npm run test:integration
 ## Project Structure
 
 ```
-pulse-surveys/
-├── backend/          NestJS API (port 3000)
+ChangeLogicAssignmentSubmission/
+├── AGENTS.md                        # AI agent constraints and instructions
+├── PLAYBOOK.md                      # Codex-authored prompt playbook (execution order)
+├── SPEC.md                          # Implementation specification (committed before code)
+├── SOLUTION.md                      # Design notes, trade-offs, AWS design, AI workflow
+├── README.md
+├── docker-compose.yml               # PostgreSQL service
+├── ai-logs/                         # Exported Kiro session transcripts
+│
+├── backend/                         # NestJS API (port 3000)
+│   ├── jest.integration.json        # Jest config for integration + e2e tests
 │   └── src/
-│       ├── main.ts
-│       └── app.module.ts
-├── frontend/         React + Vite UI (port 5173)
-│   └── src/
-│       └── main.tsx
-├── docker-compose.yml
-└── README.md
+│       ├── app.module.ts            # Root module — global AuthGuard + RolesGuard
+│       ├── main.ts                  # Bootstrap, ValidationPipe, CORS
+│       ├── data-source.ts           # TypeORM CLI data source (migrations)
+│       ├── seed.ts                  # Seed script — 2 orgs, 6 users, 2 surveys
+│       ├── auth/
+│       │   ├── auth.controller.ts   # GET /auth/me, GET /auth/users
+│       │   ├── auth.guard.ts        # X-User-Id → CurrentUser (401 if missing/unknown)
+│       │   ├── auth.service.ts
+│       │   ├── auth.module.ts
+│       │   ├── auth.guard.spec.ts   # Unit tests for AuthGuard
+│       │   ├── current-user.decorator.ts
+│       │   ├── current-user.interface.ts
+│       │   ├── public.decorator.ts  # @Public() — bypasses AuthGuard
+│       │   ├── roles.decorator.ts   # @Roles(...) — sets required role metadata
+│       │   └── roles.guard.ts       # Role enforcement (403 on mismatch)
+│       ├── common/
+│       │   └── iso-week.ts          # currentISOWeek() utility
+│       ├── entities/
+│       │   ├── organization.entity.ts
+│       │   ├── user.entity.ts       # UserRole enum: MANAGER | MEMBER
+│       │   ├── survey.entity.ts
+│       │   ├── question.entity.ts   # QuestionType enum: RATING | YES_NO
+│       │   ├── response.entity.ts   # UNIQUE(survey_id, user_id, week_key)
+│       │   └── response-answer.entity.ts
+│       ├── migrations/
+│       │   └── 1726790400000-InitialSchema.ts
+│       └── surveys/
+│           ├── surveys.controller.ts
+│           ├── surveys.service.ts
+│           ├── surveys.module.ts
+│           ├── dto/
+│           │   ├── create-survey.dto.ts
+│           │   └── submit-response.dto.ts
+│           ├── surveys.service.spec.ts       # Unit tests — survey CRUD
+│           ├── surveys.response.spec.ts      # Unit tests — response submission
+│           ├── surveys.summary.spec.ts       # Unit tests — summary aggregation
+│           ├── surveys.integration.spec.ts   # Integration tests — isolation, auth, rules
+│           └── surveys.e2e.spec.ts           # E2E — full cycle + cross-tenant negatives
+│
+└── frontend/                        # React + Vite UI (port 5173)
+    └── src/
+        ├── main.tsx                 # App root — conditional render by role
+        ├── types.ts                 # Shared TypeScript interfaces
+        ├── api.ts                   # fetch wrapper — injects X-User-Id header
+        ├── UserSelector.tsx         # Always-visible user dropdown
+        ├── MemberScreen.tsx         # Survey form — RATING buttons, YES/NO buttons
+        └── ManagerScreen.tsx        # Summary view — completion + per-question rollups
 ```
 
 ---
